@@ -1,0 +1,35 @@
+name: scaling-agent-respects-quota-agent
+description: >
+  When the scaling agent wants to add replicas but the quota agent has
+  capped the namespace, the deployment should stay at the capped count.
+
+agents:
+  - scaling-agent
+  - quota-agent
+
+setup:
+  manifests:
+    - fixtures/namespace-with-quota.yaml
+    - fixtures/deployment-at-limit.yaml
+
+trigger:
+  patch:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: target
+    namespace: test
+    spec:
+      replicas: 10
+
+expect:
+  - resource:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: target
+      namespace: test
+    conditions:
+      - path: .spec.replicas
+        value: 5
+      - path: .status.readyReplicas
+        value: 5
+timeout: 120s
