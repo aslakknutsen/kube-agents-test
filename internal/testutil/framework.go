@@ -34,7 +34,7 @@ type Options struct {
 	AgentManager agent.Manager
 
 	// Collector gathers diagnostics on failure.
-	// Can be nil (diagnostics will be skipped).
+	// If nil, a ClusterCollector is created automatically.
 	Collector diagnostics.Collector
 
 	// AgentConfigs are used to create a PodManager when AgentManager is nil.
@@ -43,7 +43,6 @@ type Options struct {
 
 // Setup initializes the framework: provisions a cluster and wires up components.
 // Call this once in TestMain or at the start of a test suite.
-// Returns a teardown function that must be called when done.
 func Setup(t *testing.T, opts Options) *Framework {
 	t.Helper()
 
@@ -77,7 +76,11 @@ func Setup(t *testing.T, opts Options) *Framework {
 	}
 
 	// Diagnostics collector.
-	f.Collector = opts.Collector
+	if opts.Collector != nil {
+		f.Collector = opts.Collector
+	} else {
+		f.Collector = diagnostics.NewClusterCollector(kubeconfigPath)
+	}
 
 	// Engine.
 	f.Engine = &engine.Engine{

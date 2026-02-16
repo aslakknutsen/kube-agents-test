@@ -208,13 +208,65 @@ When a scenario fails, the framework can collect:
 
 Pass a `diagnostics.Collector` implementation via `testutil.Options` to enable this. The diagnostics appear in the `go test` output under the failing subtest.
 
-## Current Status
+## Implementation Status
 
-This is the skeleton framework. The following pieces have interfaces defined but need implementation:
+The core framework components are implemented:
 
-- `PodManager.Deploy` / `Stop` — needs client-go pod creation/deletion
-- `Engine.applyManifest` — needs dynamic client YAML application
-- `Engine.applyPatch` — needs dynamic client patching
-- `Engine.checkExpectation` — needs dynamic client resource fetching + JSONPath evaluation
-- `diagnostics.Collector` — no concrete implementation yet
-- Fault injection hooks (network partition, kill agent, etc.)
+| Component | Status | Details |
+|-----------|--------|---------|
+| `PodManager.Deploy` / `Stop` / `Logs` | Done | Creates Kubernetes Deployments via client-go, collects pod logs |
+| `Engine.applyManifest` | Done | Reads multi-document YAML, creates/updates resources via dynamic client |
+| `Engine.applyPatch` | Done | Applies merge patches to existing resources |
+| `Engine.checkExpectation` | Done | Fetches resources, evaluates dot-path conditions with numeric type coercion |
+| `ClusterCollector` | Done | Collects agent pod logs and namespace events on failure |
+| Fault injection hooks | Not yet | Network partition, kill agent, slow API server, etc. |
+
+### Test coverage
+
+- `pkg/scenario/` — 4 tests (loader, validation, directory loading)
+- `pkg/engine/` — 17 tests (path lookup, value comparison)
+- `pkg/agent/` — 5 tests (deploy, stop, stop-all, unknown agent, default namespace)
+- `test/` — scenario YAML parsing (short mode), integration tests (require cluster)
+
+## Extending the Framework
+
+### Adding a new cluster provider
+
+Implement the `cluster.Provider` interface:
+
+```go
+type Provider interface {
+    Create(ctx context.Context) (kubeconfigPath string, err error)
+    Destroy(ctx context.Context) error
+    Kubeconfig() (string, error)
+}
+```
+
+### Adding a new agent deployment strategy
+
+Implement the `agent.Manager` interface:
+
+```go
+type Manager interface {
+    Deploy(ctx context.Context, agentName string) error
+    Stop(ctx context.Context, agentName string) error
+    StopAll(ctx context.Context) error
+    Logs(ctx context.Context, agentName string) (string, error)
+}
+```
+
+For example, a `LocalProcessManager` could run agents as local binaries instead of pods.
+
+### Adding a custom diagnostics collector
+
+Implement `diagnostics.Collector`:
+
+```go
+type Collector interface {
+    Collect(ctx context.Context, scope Scope) (*Report, error)
+}
+```
+
+### Adding new trigger types
+
+Extend the `scenario.Trigger` struct and the engine's `applyTrigger` method. For example, to support creating a resource as a trigger (not just patching), add a `Create` field to the trigger type and handle it in the engine.
