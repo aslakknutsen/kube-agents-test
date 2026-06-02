@@ -6,9 +6,15 @@ High-level testing framework for the kube-agents platform — a system where mul
 
 Unit testing individual agents is straightforward. The hard part is testing the *system*: multiple agents reacting to the same cluster state, potentially conflicting, racing, or depending on each other's outputs. High-level tests need to verify that the agents, taken together, drive the cluster toward the correct state.
 
-## Design
+## Initiatives
 
-### Core Concepts
+The framework is organized around five initiatives. Each initiative defines a goal and the design choices that support it.
+
+### 1. Declarative Scenario Testing
+
+Scenarios are data, not code. A test is a declarative description of initial state, an optional trigger, expected final state, and a convergence timeout — not a bespoke test function per interaction.
+
+**Core concepts**
 
 **Test Scenario** — A declarative description of:
 1. Initial cluster state (resources to pre-create)
@@ -20,39 +26,7 @@ Unit testing individual agents is straightforward. The hard part is testing the 
 
 **State Assertion** — A polling/watch-based check that waits for the cluster to converge to the expected state within the timeout. Not a point-in-time snapshot — agents are eventually consistent, so assertions must be too.
 
-### Architecture
-
-```
-┌──────────────────────────────────────────────────┐
-│                  Test Runner                      │
-│  (orchestrates lifecycle, collects results)       │
-└──────┬──────────────┬─────────────────┬──────────┘
-       │              │                 │
-       ▼              ▼                 ▼
-┌────────────┐ ┌─────────────┐ ┌───────────────┐
-│  Cluster   │ │   Agent     │ │   Scenario    │
-│  Provider  │ │   Manager   │ │   Engine      │
-└────────────┘ └─────────────┘ └───────────────┘
-       │              │                 │
-       ▼              ▼                 ▼
-   kind/k3d/     deploy/start/    apply initial
-   real cluster   stop agents     state, inject
-                                  faults, assert
-```
-
-**Cluster Provider** — Creates and tears down ephemeral clusters. Supports `kind` for CI and an existing kubeconfig for dev/staging. The framework doesn't own the cluster implementation — it just needs a kubeconfig.
-
-**Agent Manager** — Deploys, restarts, and kills agents within the test cluster. Agents can be deployed as pods (production-like) or run as local processes (faster iteration). The manager exposes controls for:
-- Starting/stopping individual agents mid-scenario (to test restart behavior, leader election, etc.)
-- Injecting resource limits or network policies to simulate degraded conditions
-
-**Scenario Engine** — Executes a test scenario:
-1. Applies initial state (Kubernetes manifests or programmatic resource creation)
-2. Fires the trigger
-3. Polls the cluster until the expected state is reached or the timeout expires
-4. Records pass/fail and collects diagnostics on failure (agent logs, resource diffs, events)
-
-### Scenario Definition
+**Scenario definition**
 
 Scenarios are YAML files:
 
@@ -94,7 +68,45 @@ expect:
   timeout: 120s
 ```
 
-### What This Tests (and Doesn't)
+### 2. Cluster & Agent Orchestration
+
+The test runner coordinates ephemeral clusters, agent lifecycle, and scenario execution through three pluggable components.
+
+**Architecture**
+
+```
+┌──────────────────────────────────────────────────┐
+│                  Test Runner                      │
+│  (orchestrates lifecycle, collects results)       │
+└──────┬──────────────┬─────────────────┬──────────┘
+       │              │                 │
+       ▼              ▼                 ▼
+┌────────────┐ ┌─────────────┐ ┌───────────────┐
+│  Cluster   │ │   Agent     │ │   Scenario    │
+│  Provider  │ │   Manager   │ │   Engine      │
+└────────────┘ └─────────────┘ └───────────────┘
+       │              │                 │
+       ▼              ▼                 ▼
+   kind/k3d/     deploy/start/    apply initial
+   real cluster   stop agents     state, inject
+                                  faults, assert
+```
+
+**Cluster Provider** — Creates and tears down ephemeral clusters. Supports `kind` for CI and an existing kubeconfig for dev/staging. The framework doesn't own the cluster implementation — it just needs a kubeconfig.
+
+**Agent Manager** — Deploys, restarts, and kills agents within the test cluster. Agents can be deployed as pods (production-like) or run as local processes (faster iteration). The manager exposes controls for:
+- Starting/stopping individual agents mid-scenario (to test restart behavior, leader election, etc.)
+- Injecting resource limits or network policies to simulate degraded conditions
+
+**Scenario Engine** — Executes a test scenario:
+1. Applies initial state (Kubernetes manifests or programmatic resource creation)
+2. Fires the trigger
+3. Polls the cluster until the expected state is reached or the timeout expires
+4. Records pass/fail and collects diagnostics on failure (agent logs, resource diffs, events)
+
+### 3. Multi-Agent Convergence Verification
+
+The framework targets system-level behavior: how agents interact on a shared cluster, not the internal logic of any single agent.
 
 **In scope:**
 - Agent-to-agent interaction (coordination, conflict resolution, ordering)
@@ -107,19 +119,9 @@ expect:
 - Performance/load (separate concern)
 - Kubernetes itself (assumed correct)
 
-### Failure Diagnostics
+### 4. Resilience & Fault Injection
 
-When a scenario fails, the framework collects:
-- Agent logs (filtered to the scenario's namespace/resources)
-- Kubernetes events in the test namespace
-- Diff between expected and actual resource state
-- Timeline of resource mutations (from a watch stream recorded during the test)
-
-This gives enough to debug *why* the cluster didn't converge without having to reproduce the failure manually.
-
-### Fault Injection
-
-Optional fault hooks that can be composed into scenarios:
+Scenarios can compose optional fault hooks to exercise recovery, degraded operation, and conflict handling under realistic failure modes.
 
 | Fault | Mechanism | Purpose |
 |-------|-----------|---------|
@@ -129,7 +131,21 @@ Optional fault hooks that can be composed into scenarios:
 | Stale cache | Restart informer without full resync | Test agent correctness with partial state |
 | Resource conflict | Concurrent update from test harness | Test conflict retry logic |
 
-### Implementation Plan
+### 5. Operability & Delivery
+
+Failed scenarios must be debuggable without manual reproduction, and the framework must integrate into everyday development and CI workflows.
+
+**Failure diagnostics**
+
+When a scenario fails, the framework collects:
+- Agent logs (filtered to the scenario's namespace/resources)
+- Kubernetes events in the test namespace
+- Diff between expected and actual resource state
+- Timeline of resource mutations (from a watch stream recorded during the test)
+
+This gives enough to debug *why* the cluster didn't converge without having to reproduce the failure manually.
+
+**Implementation plan**
 
 1. Cluster provider with `kind` support
 2. Agent manager that deploys agents from container images
@@ -138,7 +154,7 @@ Optional fault hooks that can be composed into scenarios:
 5. CLI to run scenarios (`kube-agents-test run scenarios/`)
 6. CI integration (GitHub Actions workflow)
 
-### Tech Choices
+**Tech choices**
 
 - **Go** — same language as the agents, shared client-go usage, no FFI boundary
 - **client-go** — direct Kubernetes API interaction, watches, dynamic client for arbitrary resources
