@@ -92,6 +92,16 @@ The test runner coordinates ephemeral clusters, agent lifecycle, and scenario ex
                                   faults, assert
 ```
 
+| Component | Primary initiative |
+|-----------|-------------------|
+| Test Runner | 2. Cluster & Agent Orchestration; 5. Operability & Delivery |
+| Cluster Provider | 2. Cluster & Agent Orchestration |
+| Agent Manager | 2. Cluster & Agent Orchestration |
+| Scenario Engine | 1. Declarative Scenario Testing; 2. Cluster & Agent Orchestration |
+| Fault hooks | 4. Resilience & Fault Injection |
+| Failure diagnostics | 5. Operability & Delivery |
+| Convergence assertions | 3. Multi-Agent Convergence Verification |
+
 **Cluster Provider** — Creates and tears down ephemeral clusters. Supports `kind` for CI and an existing kubeconfig for dev/staging. The framework doesn't own the cluster implementation — it just needs a kubeconfig.
 
 **Agent Manager** — Deploys, restarts, and kills agents within the test cluster. Agents can be deployed as pods (production-like) or run as local processes (faster iteration). The manager exposes controls for:
