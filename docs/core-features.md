@@ -89,7 +89,7 @@ Exposed controls include:
 Executes one test scenario end to end:
 
 1. **Apply initial state** — From Kubernetes manifests or programmatic resource creation.
-2. **Fire the trigger** — Patch, agent action, or fault hook as defined in the scenario.
+2. **Fire the trigger** — Resource mutation, agent restart, or fault injection as defined in the scenario.
 3. **Poll the cluster** — Until expected state is satisfied or the timeout elapses.
 4. **Record outcome** — Pass or fail; on failure, trigger collection of diagnostics (see [Failure diagnostics](#failure-diagnostics)).
 
@@ -189,14 +189,14 @@ Together, these artifacts explain ordering, errors, and drift from the expected 
 
 ## Fault injection
 
-Scenarios can compose **optional fault hooks** to stress recovery, partitioning, and consistency. The design defines:
+Optional fault hooks that can be composed into scenarios:
 
 | Fault | Mechanism | Purpose |
 |-------|-----------|---------|
 | Kill agent | Delete pod / kill process | Test recovery and leader re-election |
 | Network partition | NetworkPolicy between agent and API server | Test behavior when the agent cannot reach the cluster |
 | Slow API server | Inject latency via proxy | Test timeout and retry logic |
-| Stale cache | Restart informer without full resync | Test correctness with partial state |
+| Stale cache | Restart informer without full resync | Test agent correctness with partial state |
 | Resource conflict | Concurrent update from test harness | Test conflict retry logic |
 
 Optional fault hooks can be **composed into scenarios**; a trigger may be fault injection (alongside resource mutation or agent restart).

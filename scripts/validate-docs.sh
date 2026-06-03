@@ -31,11 +31,15 @@ done
 grep -qF 'core-features.md' "$INDEX" || fail "docs/README.md must link to core-features.md"
 
 # Banned invented API/behavior phrases (not in README)
-for phrase in 'dedicated hooks' 'REST API' 'grpc' 'OpenAPI' 'func ' 'interface {'; do
+for phrase in 'dedicated hooks' 'agent action' 'REST API' 'grpc' 'OpenAPI' 'func ' 'interface {'; do
   if grep -qiF "$phrase" "$CORE"; then
     fail "invented or out-of-scope phrase in core-features.md: $phrase"
   fi
 done
+
+# Scenario Engine trigger vocabulary must match README (resource mutation, agent restart, fault injection)
+grep -qF 'resource mutation, agent restart, or fault injection' "$CORE" \
+  || fail 'Scenario Engine trigger must use README terms: resource mutation, agent restart, fault injection'
 
 # Agent Manager wording must match README (kills, not stops)
 if grep -qE 'restarts, and stops agents' "$CORE"; then
@@ -53,6 +57,10 @@ Slow API server
 Stale cache
 Resource conflict
 EOF
+
+# Stale cache purpose must match README wording
+grep -qF 'Test agent correctness with partial state' "$CORE" \
+  || fail 'Stale cache purpose must match README: Test agent correctness with partial state'
 
 # Tech stack keywords from README
 for kw in 'client-go' 'kind' 'standalone binary' 'go test'; do
