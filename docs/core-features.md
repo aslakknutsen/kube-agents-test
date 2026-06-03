@@ -102,7 +102,7 @@ Scenarios are defined as **YAML files**. The README includes this illustrative s
 | `setup.manifests` | Paths to manifests that establish initial cluster state |
 | `trigger` | Optional action that perturbs the cluster (example uses a `patch` on a Deployment) |
 | `expect` | List of expected resource states (apiVersion, kind, name, namespace, `conditions` on JSON paths) |
-| `timeout` | Maximum wait for convergence (example: `120s`) |
+| `timeout` | Maximum wait for convergence (example: `120s`). In the design example below, `timeout` is nested under `expect` alongside the last resource entry; the README does not specify whether `timeout` is a top-level field or nested under `expect` |
 
 ### Example scenario (from design)
 
@@ -174,7 +174,7 @@ When a scenario **fails**, the framework collects material to explain why the cl
 | **Resource diff** | Between expected and actual state |
 | **Mutation timeline** | From a watch stream recorded during the test |
 
-Together these support debugging ordering, conflicts, timeouts, and incorrect final state.
+This gives enough to debug why the cluster did not converge without having to reproduce the failure manually.
 
 ## Fault injection
 
@@ -188,7 +188,7 @@ Optional **fault hooks** can be composed into scenarios. The design defines thes
 | Stale cache | Restart informer without full resync | Test agent correctness with partial state |
 | Resource conflict | Concurrent update from test harness | Test conflict retry logic |
 
-Faults are optional; a scenario may run with setup, trigger, and expect only. The agent manager and scenario engine cooperate to apply faults at the points described in the design (e.g. pod deletion, network policy, harness-driven concurrent updates).
+Faults are optional; a scenario may run with setup, trigger, and expect only. The design README assigns each fault a mechanism in the table above; it does not specify which component applies each mechanism.
 
 ## Planned implementation (roadmap)
 
