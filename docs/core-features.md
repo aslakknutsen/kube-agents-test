@@ -77,7 +77,9 @@ Responsibilities implied by the design:
 
 - Start and tear down the test environment.
 - Invoke scenario execution.
-- Aggregate pass/fail outcome and failure diagnostics.
+- Aggregate pass/fail outcome and surface failure diagnostics produced during the run.
+
+The Test Runner orchestrates collection; the Scenario Engine gathers diagnostics when a scenario fails (see [Failure diagnostics](#failure-diagnostics)).
 
 **Gap:** CLI flags, exit codes, parallel scenario execution, and result reporting formats are not yet specified.
 
@@ -118,9 +120,9 @@ The **Scenario Engine** executes a single test scenario end to end:
 1. **Apply initial state** — From Kubernetes manifests (YAML files) or programmatic resource creation.
 2. **Fire the trigger** — Apply the mutation, restart, or fault defined in the scenario.
 3. **Poll the cluster** — Until expected state is reached or timeout expires.
-4. **Record outcome** — Pass or fail, with diagnostics collected on failure.
+4. **Record outcome** — Pass or fail, and gather failure diagnostics (agent logs, events, diffs, watch timeline) when assertions do not converge in time.
 
-The engine is the component that interprets scenario YAML and drives assertions.
+The engine interprets scenario YAML and drives assertions; the Test Runner presents the aggregated result to the user or CI.
 
 ---
 
@@ -136,7 +138,7 @@ Scenarios are YAML files. The design defines the following structure:
 | `setup.manifests` | Paths to Kubernetes manifest files for initial cluster state. |
 | `trigger` | Optional event that provokes agent activity (for example, a resource patch). |
 | `expect` | List of state assertions with resource selectors and conditions. |
-| `timeout` | Maximum wait time for convergence (for example, `120s`). |
+| `expect[].timeout` | In the design example, maximum wait for convergence (for example, `120s`) appears under `expect`, not as a top-level field. |
 
 ### Example scenario
 
@@ -177,6 +179,8 @@ expect:
         value: 5
   timeout: 120s
 ```
+
+**Gap:** Whether `timeout` belongs under `expect` (as in the design example), at scenario top level, or per assertion is not fixed in the schema yet. Implementers should define one canonical placement before tooling ships.
 
 ### Trigger types (design)
 
