@@ -19,7 +19,11 @@ A **Test Scenario** is a declarative description of a multi-agent integration te
 
 Scenarios are **data, not code**. They are defined as YAML files rather than as Go test functions. This keeps tests portable across clusters and decouples scenario definition from the `go test` runner semantics.
 
-**Example use:** A scenario might pre-create a deployment at its replica quota limit, trigger a scale-up request, and assert that a quota agent caps the deployment while a scaling agent respects that cap.
+**Example uses:**
+
+- **Agent coordination** — Pre-create a deployment at its replica quota limit, trigger a scale-up request, and assert that a quota agent caps the deployment while a scaling agent respects that cap.
+- **Recovery after crash** — Pre-create shared cluster state with two agents running, inject a fault that kills one agent mid-scenario (for example, delete its pod), then assert that the cluster converges to the expected final state once the agent restarts and re-elects a leader. *Gap:* YAML for kill-agent faults and mid-scenario timing is not yet defined.
+- **Isolated agent behavior** — List only a subset of agents in the Agent Set (for example, `quota-agent` without `scaling-agent`) to verify that a single agent enforces policy correctly when no peer agent is competing for the same resources.
 
 ### Agent Set
 
