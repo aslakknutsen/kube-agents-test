@@ -243,7 +243,7 @@ Optional fault hooks can be composed into scenarios to exercise resilience and e
 ### Out of scope
 
 - **Agent internal logic** — Use unit tests for single-agent behavior.
-- **Performance and load** — Separate concern; not covered by this framework.
+- **Performance/load** — Separate concern; not covered by this framework.
 - **Kubernetes correctness** — The framework assumes Kubernetes behaves correctly.
 
 ---
