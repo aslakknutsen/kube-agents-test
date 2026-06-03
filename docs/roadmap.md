@@ -8,7 +8,7 @@ Work is intended to proceed in this order:
 
 | Step | Deliverable |
 |------|-------------|
-| 1 | **Cluster provider** with `kind` support — ephemeral clusters for CI via kubeconfig |
+| 1 | **Cluster provider** — ephemeral clusters (`kind`) for CI and attached clusters (kubeconfig), including full platforms such as OpenShift |
 | 2 | **Agent manager** — deploy agents from container images (and local process mode where applicable) |
 | 3 | **Scenario engine** — YAML parsing, initial state application, polling assertions |
 | 4 | **Failure diagnostics** — logs, events, diffs, mutation timeline on failure |

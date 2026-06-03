@@ -34,11 +34,35 @@ flowchart LR
   agents --> expect
 ```
 
-For example:
+### Example scenarios
 
-- **Kill agent** after setup but before or after a **trigger** — Asserts that remaining agents or a restarted agent restore [expected final state](core-concepts.md#test-scenario).
-- **Network partition** — Asserts agents do not corrupt cluster state when disconnected and reconcile correctly when connectivity returns (within timeout).
-- **Resource conflict** — Asserts an agent's retry path when the harness applies a competing patch.
+**Kill agent — recovery after leader loss**
+
+Setup deploys a replicated agent (e.g. leader-elected controller) and initial resources. After agents converge on setup, the fault kills the leader pod. The scenario expects a new leader to be elected and the same [expected final state](core-concepts.md#test-scenario) to be reached within the timeout — for example, a quota or scaling decision still applied correctly after failover.
+
+**Kill agent — mid-reconciliation**
+
+Setup and trigger run as in a normal scenario (e.g. patch replicas). The fault kills one agent instance while others are still reconciling. Expect asserts that the surviving agents (or a restarted instance) still drive the cluster to the declared conditions without leaving partial or conflicting writes.
+
+**Network partition — agent isolated from API server**
+
+Setup starts the full [agent set](core-concepts.md#agent-set). A NetworkPolicy blocks the partitioned agent from the Kubernetes API. Expect asserts no destructive changes to shared resources during the partition (e.g. spec fields unchanged or safe status only). After the fault is cleared, expect asserts full convergence within the timeout.
+
+**Slow API server — timeout and retry**
+
+Setup and trigger exercise an agent that depends on timely API responses. Latency injected via proxy delays reads/writes. Expect asserts the cluster still reaches the correct final state without the agent applying incorrect partial updates — validating retry and timeout behavior under delayed responses.
+
+**Stale cache — informer restart without full resync**
+
+After setup converges, the fault restarts an agent's informer without a full resync so it holds partial cached state. A trigger then changes a resource the agent watches. Expect asserts the agent reconciles from incomplete cache to the correct outcome (e.g. respects quota or ownership rules) within the timeout.
+
+**Resource conflict — concurrent harness update**
+
+Setup places a resource under agent control. The trigger and fault apply a competing patch from the test harness on the same object (same resourceVersion contention). Expect asserts the agent's conflict retry path wins or merges safely and the declared conditions on the resource still hold.
+
+**Combined degradation — partition then kill**
+
+For multi-agent scenarios: network partition one agent, then kill another. Expect asserts the remaining connected agents do not corrupt shared state and that after faults are removed, the full agent set restores [expected final state](core-concepts.md#test-scenario). Useful for testing ordering and independence when multiple failure modes overlap.
 
 Exact YAML schema for each fault will follow implementation; the README defines the fault catalog and mechanisms above.
 

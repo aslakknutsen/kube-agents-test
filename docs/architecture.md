@@ -16,8 +16,8 @@ The framework is organized around a **Test Runner** that orchestrates the lifecy
        │              │                 │
        ▼              ▼                 ▼
    kind/k3d/     deploy/start/    apply initial
-   real cluster   stop agents     state, inject
-                                  faults, assert
+   OpenShift/   stop agents     state, inject
+   real cluster                 faults, assert
 ```
 
 ## Test Runner
@@ -33,20 +33,22 @@ The planned CLI (`kube-agents-test run scenarios/`) invokes this orchestration. 
 
 ## Cluster Provider
 
-The **Cluster Provider** creates and tears down **ephemeral clusters** for isolated test runs.
+The **Cluster Provider** supplies a cluster for each test run. It supports two modes:
 
-| Environment | Typical backend |
-|-------------|-----------------|
-| CI | `kind` (and similar local cluster tools) |
-| Dev / staging | Existing cluster via kubeconfig |
+| Mode | Environment | Typical backend | Lifecycle |
+|------|-------------|-----------------|-----------|
+| **Ephemeral** | CI, local isolation | `kind`, `k3d`, and similar local cluster tools | Provider creates and tears down the cluster |
+| **Attached** | Dev, staging, pre-prod | Existing cluster via kubeconfig | Operator supplies the cluster; provider only validates access |
 
-The framework does **not** own a full cluster implementation. It needs a valid **kubeconfig** pointing at a cluster the rest of the stack can use. Supported backends mentioned in the design include `kind`, `k3d`, and real clusters configured by the operator.
+**Attached** clusters include full production-style platforms — for example **OpenShift**, managed Kubernetes (EKS, GKE, AKS), and on-prem distributions — as long as the operator provides a kubeconfig with sufficient permissions for the scenario namespace and agents under test.
+
+The framework does **not** own a full cluster implementation. It needs a valid **kubeconfig** pointing at a cluster the rest of the stack can use. Whether the cluster is ephemeral or attached, the Agent Manager and Scenario Engine interact with it the same way.
 
 Responsibilities:
 
-- Provision a cluster before scenarios that need a fresh environment
-- Tear down or release resources after the run
-- Supply kubeconfig to the Agent Manager and Scenario Engine
+- **Ephemeral mode** — Provision a cluster before scenarios that need a fresh environment; tear down or release resources after the run
+- **Attached mode** — Accept an existing kubeconfig; optionally verify connectivity and required API groups before scenarios run
+- **Both modes** — Supply kubeconfig to the Agent Manager and Scenario Engine
 
 ## Agent Manager
 
@@ -83,7 +85,7 @@ sequenceDiagram
   participant CP as Cluster Provider
   participant AM as Agent Manager
   participant SE as Scenario Engine
-  TR->>CP: Ensure cluster (kubeconfig)
+  TR->>CP: Ensure cluster (ephemeral or attached kubeconfig)
   TR->>AM: Deploy agent set
   TR->>SE: Run scenario
   SE->>SE: Apply setup manifests
