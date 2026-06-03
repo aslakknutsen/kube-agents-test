@@ -35,6 +35,16 @@ func runScenariosWithBases(ctx context.Context, deps Dependencies, scenarios []*
 			base = baseDirs[i]
 		}
 
+		if sc == nil {
+			report.Results = append(report.Results, &engine.Result{
+				Status: engine.StatusError,
+				Err:    fmt.Errorf("scenario at index %d is nil", i),
+			})
+			report.Summary.Total++
+			report.Summary.Errored++
+			continue
+		}
+
 		result, err := runOne(ctx, deps, sc, base)
 		if err != nil {
 			return report, err
