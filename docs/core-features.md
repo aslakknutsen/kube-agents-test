@@ -77,10 +77,7 @@ The framework does **not** own the cluster implementation; it only needs a worki
 
 ### Agent Manager
 
-Deploys, restarts, and stops agents **inside** the test cluster (or alongside it when run locally). Deployment modes described in the design:
-
-- **Pods in the cluster** — Production-like layout.
-- **Local processes** — Faster iteration during development.
+Deploys, restarts, and kills agents **within** the test cluster. Agents can be deployed as pods (production-like) or run as local processes (faster iteration).
 
 Exposed controls include:
 
@@ -202,7 +199,7 @@ Scenarios can compose **optional fault hooks** to stress recovery, partitioning,
 | Stale cache | Restart informer without full resync | Test correctness with partial state |
 | Resource conflict | Concurrent update from test harness | Test conflict retry logic |
 
-Faults are integrated through the scenario model (for example as part of `trigger` or dedicated hooks) so the same scenario file describes both normal and degraded paths.
+Optional fault hooks can be **composed into scenarios**; a trigger may be fault injection (alongside resource mutation or agent restart).
 
 ---
 
