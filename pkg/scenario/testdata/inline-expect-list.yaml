@@ -1,0 +1,15 @@
+name: inline-list
+agents:
+  - a
+setup:
+  manifests: []
+expect:
+  resources:
+    - resource:
+        apiVersion: v1
+        kind: ConfigMap
+        name: c
+      conditions:
+        - path: .metadata.name
+          value: c
+  timeout: 30s
