@@ -34,11 +34,15 @@ func (f *fakeCluster) Teardown(ctx context.Context) error {
 }
 
 type fakeAgent struct {
-	deployed []string
+	deployed  []string
+	deployErr error
 }
 
 func (f *fakeAgent) DeploySet(ctx context.Context, agents []string) error {
 	_ = ctx
+	if f.deployErr != nil {
+		return f.deployErr
+	}
 	f.deployed = append([]string(nil), agents...)
 	return nil
 }
@@ -61,12 +65,15 @@ type fakeEngine struct {
 func (f *fakeEngine) Run(ctx context.Context, sc *scenario.Scenario, opts scenario.RunOptions) (*scenario.Result, error) {
 	_ = ctx
 	_ = opts
-	return &scenario.Result{
+	res := &scenario.Result{
 		ScenarioName: sc.Name,
 		Passed:       f.pass,
 		Duration:     time.Second,
-		Failure:      &scenario.AssertionFailure{Message: "mismatch", TimedOut: true},
-	}, nil
+	}
+	if !f.pass {
+		res.Failure = &scenario.AssertionFailure{Message: "mismatch", TimedOut: true}
+	}
+	return res, nil
 }
 
 type fakeDiag struct{}

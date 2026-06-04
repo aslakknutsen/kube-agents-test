@@ -1,0 +1,14 @@
+name: mixed-expect
+agents:
+  - a
+setup:
+  manifests: []
+expect:
+  - resource:
+      apiVersion: v1
+      kind: Pod
+      name: p
+    conditions:
+      - path: .metadata.name
+        value: p
+  timeout: 30s
