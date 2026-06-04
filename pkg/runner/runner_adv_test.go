@@ -85,7 +85,7 @@ func TestRunner_attachedSkipsClusterTeardown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Run(context.Background(), []*scenario.Scenario{minimalScenario("ok")})
+	_, err = r.Run(context.Background(), []runner.LoadedScenario{{Scenario: minimalScenario("ok")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestRunner_ephemeralTeardownsCluster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Run(context.Background(), []*scenario.Scenario{minimalScenario("ok")})
+	_, err = r.Run(context.Background(), []runner.LoadedScenario{{Scenario: minimalScenario("ok")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestRunner_deployFailureSkipsEngine(t *testing.T) {
 		t.Fatal(err)
 	}
 	ag.deployErr = errors.New("boom")
-	suite, err := r.Run(context.Background(), []*scenario.Scenario{minimalScenario("x")})
+	suite, err := r.Run(context.Background(), []runner.LoadedScenario{{Scenario: minimalScenario("x")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,9 +150,9 @@ func TestRunner_multipleScenariosTeardownAgentsEachTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Run(context.Background(), []*scenario.Scenario{
-		minimalScenario("one"),
-		minimalScenario("two"),
+	_, err = r.Run(context.Background(), []runner.LoadedScenario{
+		{Scenario: minimalScenario("one")},
+		{Scenario: minimalScenario("two")},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +173,7 @@ func TestRunner_diagnosticsNotImplementedDoesNotFailRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	suite, err := r.Run(context.Background(), []*scenario.Scenario{minimalScenario("fail")})
+	suite, err := r.Run(context.Background(), []runner.LoadedScenario{{Scenario: minimalScenario("fail")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestRunner_engineNilResultMarksFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	suite, err := r.Run(context.Background(), []*scenario.Scenario{minimalScenario("nil")})
+	suite, err := r.Run(context.Background(), []runner.LoadedScenario{{Scenario: minimalScenario("nil")}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestRunner_engineNilResultMarksFailed(t *testing.T) {
 	}
 }
 
-func TestRunner_runOptionsBaseDirNotSetYet(t *testing.T) {
+func TestRunner_runOptionsBaseDirFromPath(t *testing.T) {
 	eng := &optsCapturingEngine{fakeEngine: fakeEngine{pass: true}}
 	r, err := runner.New(runner.Config{
 		ClusterProvider: &fakeCluster{},
@@ -216,12 +216,17 @@ func TestRunner_runOptionsBaseDirNotSetYet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Run(context.Background(), []*scenario.Scenario{minimalScenario("x")})
+	scenarioPath := filepath.Join("/tmp", "scenarios", "demo.yaml")
+	_, err = r.Run(context.Background(), []runner.LoadedScenario{{
+		Path:     scenarioPath,
+		Scenario: minimalScenario("x"),
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if eng.lastOpts.BaseDir != "" {
-		t.Errorf("BaseDir = %q, want empty until runner tracks scenario paths", eng.lastOpts.BaseDir)
+	want := filepath.Dir(scenarioPath)
+	if eng.lastOpts.BaseDir != want {
+		t.Errorf("BaseDir = %q, want %q", eng.lastOpts.BaseDir, want)
 	}
 }
 
@@ -234,13 +239,21 @@ func TestLoadPath_fileAndDirectory(t *testing.T) {
 	if len(fromDir) < 2 {
 		t.Fatalf("dir len = %d", len(fromDir))
 	}
+	for _, ls := range fromDir {
+		if ls.Path == "" || ls.Scenario == nil {
+			t.Fatalf("loaded = %+v", ls)
+		}
+		if filepath.Dir(ls.Path) != dir {
+			t.Errorf("Path %q not under %q", ls.Path, dir)
+		}
+	}
 	file := filepath.Join(dir, "example-scenario.yaml")
 	fromFile, err := runner.LoadPath(file)
 	if err != nil {
 		t.Fatalf("LoadPath file: %v", err)
 	}
-	if len(fromFile) != 1 {
-		t.Fatalf("file len = %d", len(fromFile))
+	if len(fromFile) != 1 || fromFile[0].Path != file || fromFile[0].Scenario == nil {
+		t.Fatalf("loaded = %+v", fromFile)
 	}
 }
 

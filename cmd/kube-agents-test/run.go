@@ -56,13 +56,13 @@ func runCommand(args []string) error {
 	_ = *agentConfigPath // reserved until agent config file format is defined
 	_ = *verbose
 
-	scenarios, err := runner.LoadPath(path)
+	loaded, err := runner.LoadPath(path)
 	if err != nil {
 		return err
 	}
 	if *timeoutOverride > 0 {
-		for _, sc := range scenarios {
-			sc.Expect.Timeout = *timeoutOverride
+		for i := range loaded {
+			loaded[i].Scenario.Expect.Timeout = *timeoutOverride
 		}
 	}
 
@@ -82,7 +82,7 @@ func runCommand(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 24*time.Hour)
 	defer cancel()
 
-	suite, err := r.Run(ctx, scenarios)
+	suite, err := r.Run(ctx, loaded)
 	if err != nil {
 		return err
 	}

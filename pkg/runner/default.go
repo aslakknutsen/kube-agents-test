@@ -44,7 +44,7 @@ func New(cfg Config) (Runner, error) {
 }
 
 // Run executes scenarios sequentially: cluster → agents → engine → diagnostics on fail → teardown.
-func (r *defaultRunner) Run(ctx context.Context, scenarios []*scenario.Scenario) (*SuiteResult, error) {
+func (r *defaultRunner) Run(ctx context.Context, scenarios []LoadedScenario) (*SuiteResult, error) {
 	if len(scenarios) == 0 {
 		return &SuiteResult{}, nil
 	}
@@ -67,8 +67,8 @@ func (r *defaultRunner) Run(ctx context.Context, scenarios []*scenario.Scenario)
 	suite := &SuiteResult{
 		Results: make([]ScenarioRunResult, 0, len(scenarios)),
 	}
-	for _, sc := range scenarios {
-		suite.Results = append(suite.Results, r.runOne(ctx, cl, mgr, sc))
+	for _, ls := range scenarios {
+		suite.Results = append(suite.Results, r.runOne(ctx, cl, mgr, ls))
 	}
 	for _, res := range suite.Results {
 		if res.Passed {
@@ -101,7 +101,8 @@ func (r *defaultRunner) ensureAgentManager(cl *cluster.Cluster) (agent.Manager, 
 	return r.cfg.AgentManagerFactory(cl, r.cfg.AgentConfig)
 }
 
-func (r *defaultRunner) runOne(ctx context.Context, cl *cluster.Cluster, mgr agent.Manager, sc *scenario.Scenario) ScenarioRunResult {
+func (r *defaultRunner) runOne(ctx context.Context, cl *cluster.Cluster, mgr agent.Manager, ls LoadedScenario) ScenarioRunResult {
+	sc := ls.Scenario
 	out := ScenarioRunResult{Name: sc.Name}
 
 	if err := mgr.DeploySet(ctx, sc.Agents); err != nil {
@@ -114,6 +115,7 @@ func (r *defaultRunner) runOne(ctx context.Context, cl *cluster.Cluster, mgr age
 	result, err := r.cfg.ScenarioEngine.Run(ctx, sc, scenario.RunOptions{
 		Cluster: cl,
 		Agents:  mgr,
+		BaseDir: BaseDirForScenario(ls.Path),
 	})
 	if err != nil {
 		out.Err = fmt.Errorf("run scenario: %w", err)

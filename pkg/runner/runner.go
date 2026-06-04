@@ -30,7 +30,7 @@ type Config struct {
 
 // Runner executes one or more scenarios and aggregates results.
 type Runner interface {
-	Run(ctx context.Context, scenarios []*scenario.Scenario) (*SuiteResult, error)
+	Run(ctx context.Context, scenarios []LoadedScenario) (*SuiteResult, error)
 }
 
 // SuiteResult aggregates per-scenario outcomes.

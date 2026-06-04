@@ -110,7 +110,7 @@ func TestRunner_runOneScenario_pass(t *testing.T) {
 			Timeout: time.Minute,
 		},
 	}
-	suite, err := r.Run(context.Background(), []*scenario.Scenario{sc})
+	suite, err := r.Run(context.Background(), []runner.LoadedScenario{{Scenario: sc}})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestRunner_collectsDiagnosticsOnFailure(t *testing.T) {
 			Timeout: time.Minute,
 		},
 	}
-	suite, err := r.Run(context.Background(), []*scenario.Scenario{sc})
+	suite, err := r.Run(context.Background(), []runner.LoadedScenario{{Scenario: sc}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,14 +172,16 @@ func TestRunner_attachedRequiresKubeconfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Run(context.Background(), []*scenario.Scenario{{
-		Name: "x", Agents: []string{"a"},
-		Expect: scenario.Expectation{
-			Resources: []scenario.ResourceExpect{{
-				Resource:   scenario.ObjectRef{APIVersion: "v1", Kind: "Pod", Name: "p"},
-				Conditions: []scenario.Condition{{Path: ".x", Value: 1}},
-			}},
-			Timeout: time.Minute,
+	_, err = r.Run(context.Background(), []runner.LoadedScenario{{
+		Scenario: &scenario.Scenario{
+			Name: "x", Agents: []string{"a"},
+			Expect: scenario.Expectation{
+				Resources: []scenario.ResourceExpect{{
+					Resource:   scenario.ObjectRef{APIVersion: "v1", Kind: "Pod", Name: "p"},
+					Conditions: []scenario.Condition{{Path: ".x", Value: 1}},
+				}},
+				Timeout: time.Minute,
+			},
 		},
 	}})
 	if err == nil || !errors.Is(err, errors.New("runner: kubeconfig required for attached mode")) {
