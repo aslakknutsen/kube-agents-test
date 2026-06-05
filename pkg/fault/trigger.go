@@ -2,6 +2,7 @@ package fault
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -95,17 +96,21 @@ func (t *Trigger) Validate() error {
 }
 
 func (p *PatchTrigger) validate() error {
-	if p.APIVersion == "" || p.Kind == "" || p.Name == "" {
+	if isBlank(p.APIVersion) || isBlank(p.Kind) || isBlank(p.Name) {
 		return fmt.Errorf("%w: patch requires apiVersion, kind, and name", ErrInvalidTrigger)
 	}
 	return nil
 }
 
 func (a *AgentRestartTrigger) validate() error {
-	if a.AgentID == "" {
+	if isBlank(a.AgentID) {
 		return fmt.Errorf("%w: agentRestart requires agentId", ErrInvalidTrigger)
 	}
 	return nil
+}
+
+func isBlank(s string) bool {
+	return strings.TrimSpace(s) == ""
 }
 
 // Validate checks that exactly one fault variant is set and required fields are present.
@@ -134,11 +139,11 @@ func (f *Fault) Validate() error {
 	}
 	switch {
 	case f.KillAgent != nil:
-		if f.KillAgent.AgentID == "" {
+		if isBlank(f.KillAgent.AgentID) {
 			return fmt.Errorf("%w: killAgent requires agentId", ErrInvalidTrigger)
 		}
 	case f.NetworkPartition != nil:
-		if f.NetworkPartition.AgentID == "" {
+		if isBlank(f.NetworkPartition.AgentID) {
 			return fmt.Errorf("%w: networkPartition requires agentId", ErrInvalidTrigger)
 		}
 	case f.SlowAPIServer != nil:
@@ -146,11 +151,11 @@ func (f *Fault) Validate() error {
 			return fmt.Errorf("%w: slowAPIServer requires positive latency", ErrInvalidTrigger)
 		}
 	case f.StaleCache != nil:
-		if f.StaleCache.AgentID == "" {
+		if isBlank(f.StaleCache.AgentID) {
 			return fmt.Errorf("%w: staleCache requires agentId", ErrInvalidTrigger)
 		}
 	case f.ResourceConflict != nil:
-		if f.ResourceConflict.APIVersion == "" || f.ResourceConflict.Kind == "" || f.ResourceConflict.Name == "" {
+		if isBlank(f.ResourceConflict.APIVersion) || isBlank(f.ResourceConflict.Kind) || isBlank(f.ResourceConflict.Name) {
 			return fmt.Errorf("%w: resourceConflict requires apiVersion, kind, and name", ErrInvalidTrigger)
 		}
 	}

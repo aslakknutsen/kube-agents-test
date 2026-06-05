@@ -118,14 +118,14 @@ func isBlank(s string) bool {
 }
 
 func (a *Assertion) validate() error {
-	if a.Resource.APIVersion == "" || a.Resource.Kind == "" || a.Resource.Name == "" {
+	if isBlank(a.Resource.APIVersion) || isBlank(a.Resource.Kind) || isBlank(a.Resource.Name) {
 		return fmt.Errorf("assertion resource requires apiVersion, kind, and name")
 	}
 	if len(a.Conditions) == 0 {
 		return fmt.Errorf("assertion requires at least one condition")
 	}
 	for i, c := range a.Conditions {
-		if c.Path == "" {
+		if isBlank(c.Path) {
 			return fmt.Errorf("conditions[%d].path is required", i)
 		}
 	}

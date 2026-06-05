@@ -311,6 +311,80 @@ agents:
 	})
 }
 
+func TestLoadRejectsWhitespaceAssertionResourceFields(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: ws-assertion
+agents:
+  - agent-a
+setup:
+  manifests:
+    - fixtures/base.yaml
+expect:
+  timeout: 30s
+  assertions:
+    - resource:
+        apiVersion: "   "
+        kind: Pod
+        name: p
+      conditions:
+        - path: .x
+          value: 1
+`
+	path := writeScenarioFile(t, dir, "ws-assertion.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadRejectsWhitespaceConditionPath(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: ws-path
+agents:
+  - agent-a
+setup:
+  manifests:
+    - fixtures/base.yaml
+expect:
+  timeout: 30s
+  assertions:
+    - resource: {apiVersion: v1, kind: Pod, name: p}
+      conditions:
+        - path: "   "
+          value: 1
+`
+	path := writeScenarioFile(t, dir, "ws-path.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadRejectsWhitespaceTriggerAgentID(t *testing.T) {
+	dir := t.TempDir()
+	content := validScenarioBody("ws-trigger-agent") + `trigger:
+  agentRestart:
+    agentId: "   "
+`
+	path := writeScenarioFile(t, dir, "ws-trigger-agent.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+	if !errors.Is(err, fault.ErrInvalidTrigger) {
+		t.Fatalf("errors.Is(fault.ErrInvalidTrigger)=false, got: %v", err)
+	}
+}
+
 func TestLoadRejectsWhitespaceManifestPaths(t *testing.T) {
 	dir := t.TempDir()
 	content := `name: ws-manifest

@@ -52,6 +52,52 @@ func TestSlowAPIServerRejectsZeroLatency(t *testing.T) {
 	}
 }
 
+func TestTriggerValidateRejectsWhitespaceAgentIDs(t *testing.T) {
+	cases := []struct {
+		name string
+		tr   fault.Trigger
+	}{
+		{
+			name: "agentRestart_whitespace",
+			tr:   fault.Trigger{AgentRestart: &fault.AgentRestartTrigger{AgentID: "   "}},
+		},
+		{
+			name: "agentRestart_nbsp",
+			tr:   fault.Trigger{AgentRestart: &fault.AgentRestartTrigger{AgentID: "\u00a0"}},
+		},
+		{
+			name: "killAgent_whitespace",
+			tr:   fault.Trigger{Fault: &fault.Fault{KillAgent: &fault.KillAgentFault{AgentID: "   "}}},
+		},
+		{
+			name: "networkPartition_whitespace",
+			tr:   fault.Trigger{Fault: &fault.Fault{NetworkPartition: &fault.NetworkPartitionFault{AgentID: "   "}}},
+		},
+		{
+			name: "staleCache_whitespace",
+			tr:   fault.Trigger{Fault: &fault.Fault{StaleCache: &fault.StaleCacheFault{AgentID: "   "}}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.tr.Validate(); !errors.Is(err, fault.ErrInvalidTrigger) {
+				t.Fatalf("got %v", err)
+			}
+		})
+	}
+}
+
+func TestTriggerValidateRejectsWhitespacePatchFields(t *testing.T) {
+	tr := fault.Trigger{Patch: &fault.PatchTrigger{
+		APIVersion: "   ",
+		Kind:       "Pod",
+		Name:       "p",
+	}}
+	if err := tr.Validate(); !errors.Is(err, fault.ErrInvalidTrigger) {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestFaultValidateRejectsIncompleteVariants(t *testing.T) {
 	cases := []struct {
 		name string
