@@ -114,6 +114,9 @@ func TestRunnerOrchestrationOrder(t *testing.T) {
 	if manager.deployCalls != 1 {
 		t.Errorf("Deploy calls = %d, want 1", manager.deployCalls)
 	}
+	if manager.teardownCalls != 1 {
+		t.Errorf("Teardown calls = %d, want 1 after final scenario", manager.teardownCalls)
+	}
 	if eng.runCalls != 1 {
 		t.Errorf("Engine.Run calls = %d, want 1", eng.runCalls)
 	}

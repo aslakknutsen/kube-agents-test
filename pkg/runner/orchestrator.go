@@ -41,12 +41,15 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 	}
 
 	report := Report{
-		StartedAt:   time.Now(),
-		Diagnostics: make(map[string]diagnostics.Artifacts),
+		StartedAt:         time.Now(),
+		Diagnostics:       make(map[string]diagnostics.Artifacts),
+		DiagnosticsErrors: make(map[string]error),
 	}
 
 	cl, err := opts.Deps.Provider.Ensure(ctx, opts.ClusterConfig)
 	if err != nil {
+		report.InfraFailed = true
+		report.EndedAt = time.Now()
 		return report, err
 	}
 
@@ -60,19 +63,29 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 		}()
 	}
 
-	var prevAgents scenario.AgentSet
+	var deployedAgents scenario.AgentSet
+	defer func() {
+		if len(deployedAgents) > 0 {
+			_ = opts.Deps.Manager.Teardown(ctx)
+		}
+	}()
+
 	for _, item := range loaded {
-		if !agentSetsEqual(item.Scenario.Agents, prevAgents) {
-			if len(prevAgents) > 0 {
+		if !agentSetsEqual(item.Scenario.Agents, deployedAgents) {
+			if len(deployedAgents) > 0 {
 				if err := opts.Deps.Manager.Teardown(ctx); err != nil {
+					report.InfraFailed = true
 					report.EndedAt = time.Now()
 					return report, err
 				}
+				deployedAgents = nil
 			}
 			if err := opts.Deps.Manager.Deploy(ctx, cl, item.Scenario.Agents); err != nil {
+				report.InfraFailed = true
 				report.EndedAt = time.Now()
 				return report, err
 			}
+			deployedAgents = item.Scenario.Agents
 		}
 
 		result, err := opts.Deps.Engine.Run(ctx, engine.RunInput{
@@ -84,13 +97,18 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 		})
 		if err != nil {
 			report.Results = append(report.Results, result)
+			report.InfraFailed = true
 			report.EndedAt = time.Now()
 			return report, err
 		}
 
 		if !result.Passed && opts.Deps.Collector != nil && result.Failure != nil {
-			artifacts, collectErr := opts.Deps.Collector.Collect(ctx, *result.Failure)
-			if collectErr == nil {
+			failure := *result.Failure
+			failure.ArtifactsDir = opts.ArtifactsDir
+			artifacts, collectErr := opts.Deps.Collector.Collect(ctx, failure)
+			if collectErr != nil {
+				report.DiagnosticsErrors[item.Scenario.Name] = collectErr
+			} else {
 				report.Diagnostics[item.Scenario.Name] = artifacts
 			}
 		}
@@ -99,7 +117,6 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 		if opts.FailFast && !result.Passed {
 			break
 		}
-		prevAgents = item.Scenario.Agents
 	}
 
 	report.EndedAt = time.Now()

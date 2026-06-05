@@ -13,6 +13,7 @@ type FailureContext struct {
 	Scenario         *scenario.Scenario
 	ScenarioPath     string
 	SandboxNamespace string
+	ArtifactsDir     string
 	StartedAt        time.Time
 	FailedAt         time.Time
 	LastObserved     []ObservedCondition

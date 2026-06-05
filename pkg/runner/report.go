@@ -9,10 +9,12 @@ import (
 
 // Report aggregates per-scenario results for a run.
 type Report struct {
-	Results     []engine.Result
-	Diagnostics map[string]diagnostics.Artifacts
-	StartedAt   time.Time
-	EndedAt     time.Time
+	Results           []engine.Result
+	Diagnostics       map[string]diagnostics.Artifacts
+	DiagnosticsErrors map[string]error
+	StartedAt         time.Time
+	EndedAt           time.Time
+	InfraFailed       bool
 }
 
 // Passed reports whether every scenario passed.
@@ -38,6 +40,9 @@ func (r Report) FailedCount() int {
 
 // ExitCode returns 0 if all passed, 1 if any scenario failed, 2 for infrastructure errors.
 func (r Report) ExitCode() int {
+	if r.InfraFailed {
+		return 2
+	}
 	if r.Passed() {
 		return 0
 	}
