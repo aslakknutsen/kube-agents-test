@@ -107,7 +107,7 @@ func (s *Scenario) Validate() error {
 	}
 	for i, a := range s.Expect.Assertions {
 		if err := a.validate(); err != nil {
-			return fmt.Errorf("%w: expect.assertions[%d]: %v", ErrInvalidScenario, i, err)
+			return fmt.Errorf("%w: expect.assertions[%d]: %w", ErrInvalidScenario, i, err)
 		}
 	}
 	return nil

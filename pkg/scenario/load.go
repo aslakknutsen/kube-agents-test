@@ -88,7 +88,7 @@ func (e *expectYAML) UnmarshalYAML(node *yaml.Node) error {
 		if err := node.Decode(&canon); err != nil {
 			return err
 		}
-		if len(canon.Assertions) > 0 {
+		if len(canon.Assertions) > 0 || isCanonicalExpectMapping(node) {
 			e.Canonical = &canon
 			return nil
 		}
@@ -175,6 +175,22 @@ func (raw *scenarioYAML) toScenario() (*Scenario, error) {
 		Trigger:     raw.Trigger,
 		Expect:      exp,
 	}, nil
+}
+
+// isCanonicalExpectMapping reports whether the YAML mapping uses only canonical
+// expect keys (timeout, assertions), including empty assertions: [].
+func isCanonicalExpectMapping(node *yaml.Node) bool {
+	if node == nil || node.Kind != yaml.MappingNode || len(node.Content) == 0 {
+		return false
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		switch node.Content[i].Value {
+		case "timeout", "assertions":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (e *expectYAML) toExpect() (Expect, error) {

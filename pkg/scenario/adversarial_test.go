@@ -51,18 +51,27 @@ func TestLoadRejectsMalformedExpect(t *testing.T) {
 		wantInvalid   bool
 	}{
 		{
-			name: "canonical_empty_assertions",
+			name:        "canonical_empty_assertions",
+			wantInvalid: true,
 			suffix: `expect:
   timeout: 10s
   assertions: []
 `,
 		},
 		{
-			name: "canonical_missing_timeout",
+			name:        "canonical_missing_timeout",
+			wantInvalid: true,
 			suffix: `expect:
   assertions:
     - resource: {apiVersion: v1, kind: Pod, name: p}
       conditions: [{path: .x, value: 1}]
+`,
+		},
+		{
+			name:        "canonical_timeout_only",
+			wantInvalid: true,
+			suffix: `expect:
+  timeout: 10s
 `,
 		},
 		{
@@ -497,6 +506,36 @@ expect:
 	}
 	if !errors.Is(err, scenario.ErrInvalidScenario) {
 		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadAssertionErrorChainPreservesInnerError(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: bad-assertion
+agents:
+  - agent-a
+setup:
+  manifests:
+    - fixtures/base.yaml
+expect:
+  timeout: 30s
+  assertions:
+    - resource:
+        apiVersion: v1
+        kind: Pod
+        name: p
+      conditions: []
+`
+	path := writeScenarioFile(t, dir, "bad-assertion.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "assertion requires at least one condition") {
+		t.Fatalf("inner assertion error not in chain: %v", err)
 	}
 }
 
