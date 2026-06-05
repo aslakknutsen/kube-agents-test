@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"gitea.gitea/mirror/kube-agents-test/pkg/fault"
 	"gitea.gitea/mirror/kube-agents-test/pkg/scenario"
 	"gopkg.in/yaml.v3"
 )
@@ -308,6 +309,139 @@ agents:
 			t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
 		}
 	})
+}
+
+func TestLoadRejectsWhitespaceManifestPaths(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: ws-manifest
+agents:
+  - agent-a
+setup:
+  manifests:
+    - "   "
+expect:
+  timeout: 30s
+  assertions:
+    - resource: {apiVersion: v1, kind: Pod, name: p}
+      conditions: [{path: .x, value: 1}]
+`
+	path := writeScenarioFile(t, dir, "ws-manifest.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadRejectsZeroTimeoutCanonical(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: zero-timeout
+agents:
+  - agent-a
+setup:
+  manifests:
+    - fixtures/base.yaml
+expect:
+  timeout: 0s
+  assertions:
+    - resource: {apiVersion: v1, kind: Pod, name: p}
+      conditions: [{path: .x, value: 1}]
+`
+	path := writeScenarioFile(t, dir, "zero-timeout.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadRejectsNegativeTimeoutLegacyMapping(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: neg-legacy
+agents: [a]
+setup: {manifests: [m.yaml]}
+expect:
+  resource: {apiVersion: v1, kind: Pod, name: p}
+  conditions: [{path: .x, value: 1}]
+  timeout: -5s
+`
+	path := writeScenarioFile(t, dir, "neg-legacy.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadRejectsNBSPInName(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: "` + "\u00a0" + `"
+agents:
+  - agent-a
+setup:
+  manifests:
+    - fixtures/base.yaml
+expect:
+  timeout: 30s
+  assertions:
+    - resource: {apiVersion: v1, kind: Pod, name: p}
+      conditions: [{path: .x, value: 1}]
+`
+	path := writeScenarioFile(t, dir, "nbsp-name.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadRejectsNullAgents(t *testing.T) {
+	dir := t.TempDir()
+	content := `name: null-agents
+agents: null
+setup:
+  manifests:
+    - m.yaml
+expect:
+  timeout: 30s
+  assertions:
+    - resource: {apiVersion: v1, kind: Pod, name: p}
+      conditions: [{path: .x, value: 1}]
+`
+	path := writeScenarioFile(t, dir, "null-agents.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+}
+
+func TestLoadTriggerErrorChainIncludesFaultInvalidTrigger(t *testing.T) {
+	dir := t.TempDir()
+	content := validScenarioBody("trigger-chain") + `trigger:
+  patch: {kind: Pod, name: p}
+`
+	path := writeScenarioFile(t, dir, "trigger-chain.yaml", content)
+	_, err := scenario.Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, scenario.ErrInvalidScenario) {
+		t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+	}
+	if !errors.Is(err, fault.ErrInvalidTrigger) {
+		t.Fatalf("errors.Is(fault.ErrInvalidTrigger)=false, got: %v", err)
+	}
 }
 
 func TestLoadDirReturnsDuplicateNamesWithoutError(t *testing.T) {

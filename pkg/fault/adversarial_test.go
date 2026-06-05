@@ -41,6 +41,17 @@ networkPartition: {agentId: b}
 	})
 }
 
+func TestSlowAPIServerRejectsZeroLatency(t *testing.T) {
+	f := fault.Fault{SlowAPIServer: &fault.SlowAPIServerFault{Latency: 0}}
+	err := f.Validate()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, fault.ErrInvalidTrigger) {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestFaultValidateRejectsIncompleteVariants(t *testing.T) {
 	cases := []struct {
 		name string
