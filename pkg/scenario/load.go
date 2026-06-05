@@ -194,7 +194,7 @@ func isCanonicalExpectMapping(node *yaml.Node) bool {
 }
 
 func (e *expectYAML) toExpect() (Expect, error) {
-	if e.Canonical != nil && len(e.Canonical.Assertions) > 0 {
+	if e.Canonical != nil {
 		return Expect{
 			Timeout:    e.Canonical.Timeout.Duration,
 			Assertions: e.Canonical.Assertions,
