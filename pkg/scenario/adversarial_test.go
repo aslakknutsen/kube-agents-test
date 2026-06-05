@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,7 +65,8 @@ func TestLoadRejectsMalformedExpect(t *testing.T) {
 `,
 		},
 		{
-			name: "negative_timeout",
+			name:        "negative_timeout",
+			wantInvalid: true,
 			suffix: `expect:
   timeout: -5s
   assertions:
@@ -263,6 +265,49 @@ func TestLoadDirNonRecursiveAndEmpty(t *testing.T) {
 	if len(scenarios) != 1 || scenarios[0].Name != "top-level" {
 		t.Fatalf("LoadDir should be non-recursive: got %#v", scenarios)
 	}
+}
+
+func TestLoadRejectsWhitespaceOnlyIdentifiers(t *testing.T) {
+	dir := t.TempDir()
+	base := `agents:
+  - agent-a
+setup:
+  manifests:
+    - fixtures/base.yaml
+expect:
+  timeout: 30s
+  assertions:
+    - resource: {apiVersion: v1, kind: Pod, name: p}
+      conditions: [{path: .x, value: 1}]
+`
+
+	t.Run("whitespace_name", func(t *testing.T) {
+		content := `name: "   "
+` + base
+		path := writeScenarioFile(t, dir, "ws-name.yaml", content)
+		_, err := scenario.Load(path)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !errors.Is(err, scenario.ErrInvalidScenario) {
+			t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+		}
+	})
+
+	t.Run("whitespace_agent", func(t *testing.T) {
+		content := `name: valid-name
+agents:
+  - "   "
+` + base[strings.Index(base, "setup:"):]
+		path := writeScenarioFile(t, dir, "ws-agent.yaml", content)
+		_, err := scenario.Load(path)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !errors.Is(err, scenario.ErrInvalidScenario) {
+			t.Fatalf("errors.Is(ErrInvalidScenario)=false, got: %v", err)
+		}
+	})
 }
 
 func TestLoadDirReturnsDuplicateNamesWithoutError(t *testing.T) {

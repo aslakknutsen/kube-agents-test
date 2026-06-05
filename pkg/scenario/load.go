@@ -88,7 +88,7 @@ func (e *expectYAML) UnmarshalYAML(node *yaml.Node) error {
 		if err := node.Decode(&canon); err != nil {
 			return err
 		}
-		if canon.Timeout.Duration > 0 && len(canon.Assertions) > 0 {
+		if len(canon.Assertions) > 0 {
 			e.Canonical = &canon
 			return nil
 		}
@@ -128,7 +128,7 @@ func (e *expectYAML) UnmarshalYAML(node *yaml.Node) error {
 				}
 			}
 		}
-		if timeout.Duration > 0 && len(assertions) > 0 {
+		if len(assertions) > 0 {
 			e.Canonical = &canonicalExpect{Timeout: timeout, Assertions: assertions}
 			return nil
 		}
@@ -152,7 +152,7 @@ func (e *expectYAML) UnmarshalYAML(node *yaml.Node) error {
 				assertions = append(assertions, a)
 			}
 		}
-		if timeout.Duration > 0 && len(assertions) > 0 {
+		if len(assertions) > 0 {
 			e.Canonical = &canonicalExpect{Timeout: timeout, Assertions: assertions}
 			return nil
 		}
@@ -178,7 +178,7 @@ func (raw *scenarioYAML) toScenario() (*Scenario, error) {
 }
 
 func (e *expectYAML) toExpect() (Expect, error) {
-	if e.Canonical != nil && e.Canonical.Timeout.Duration > 0 && len(e.Canonical.Assertions) > 0 {
+	if e.Canonical != nil && len(e.Canonical.Assertions) > 0 {
 		return Expect{
 			Timeout:    e.Canonical.Timeout.Duration,
 			Assertions: e.Canonical.Assertions,

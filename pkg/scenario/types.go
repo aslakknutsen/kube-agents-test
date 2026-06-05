@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"gitea.gitea/mirror/kube-agents-test/pkg/fault"
@@ -74,14 +75,14 @@ func (s *Scenario) Validate() error {
 	if s == nil {
 		return fmt.Errorf("%w: scenario is nil", ErrInvalidScenario)
 	}
-	if s.Name == "" {
+	if isBlank(s.Name) {
 		return fmt.Errorf("%w: name is required", ErrInvalidScenario)
 	}
 	if len(s.Agents) == 0 {
 		return fmt.Errorf("%w: at least one agent is required", ErrInvalidScenario)
 	}
 	for i, id := range s.Agents {
-		if id == "" {
+		if isBlank(id) {
 			return fmt.Errorf("%w: agents[%d] is empty", ErrInvalidScenario, i)
 		}
 	}
@@ -89,13 +90,13 @@ func (s *Scenario) Validate() error {
 		return fmt.Errorf("%w: setup.manifests is required", ErrInvalidScenario)
 	}
 	for i, p := range s.Setup.Manifests {
-		if p == "" {
+		if isBlank(p) {
 			return fmt.Errorf("%w: setup.manifests[%d] is empty", ErrInvalidScenario, i)
 		}
 	}
 	if s.Trigger != nil {
 		if err := s.Trigger.Validate(); err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidScenario, err)
+			return fmt.Errorf("%w: %w", ErrInvalidScenario, err)
 		}
 	}
 	if s.Expect.Timeout <= 0 {
@@ -110,6 +111,10 @@ func (s *Scenario) Validate() error {
 		}
 	}
 	return nil
+}
+
+func isBlank(s string) bool {
+	return strings.TrimSpace(s) == ""
 }
 
 func (a *Assertion) validate() error {
