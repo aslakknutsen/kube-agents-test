@@ -60,11 +60,23 @@ func (m *recordingManager) ApplyNetworkPolicy(ctx context.Context, spec agent.Ne
 func (m *recordingManager) RemoveNetworkPolicy(ctx context.Context, policyID string) error { return nil }
 
 type recordingEngine struct {
-	runCalls int
+	runCalls   int
+	failFirst  bool
+	infraError bool
 }
 
 func (e *recordingEngine) Run(ctx context.Context, in engine.RunInput) (engine.Result, error) {
 	e.runCalls++
+	if e.infraError {
+		return engine.Result{ScenarioName: in.Scenario.Name}, errors.New("infra failure")
+	}
+	if e.failFirst {
+		return engine.Result{
+			ScenarioName: in.Scenario.Name,
+			Passed:       false,
+			Failure:      &engine.FailureContext{Scenario: in.Scenario},
+		}, nil
+	}
 	return engine.Result{ScenarioName: in.Scenario.Name, Passed: true}, nil
 }
 
