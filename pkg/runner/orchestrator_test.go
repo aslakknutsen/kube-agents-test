@@ -24,10 +24,14 @@ func (fakeCluster) KubeconfigPath() (string, bool)      { return "", false }
 type recordingProvider struct {
 	ensureCalls   int
 	teardownCalls int
+	ensureErr     error
 }
 
 func (p *recordingProvider) Ensure(ctx context.Context, cfg cluster.Config) (cluster.Cluster, error) {
 	p.ensureCalls++
+	if p.ensureErr != nil {
+		return nil, p.ensureErr
+	}
 	return fakeCluster{}, nil
 }
 
