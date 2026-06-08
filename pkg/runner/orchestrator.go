@@ -104,6 +104,7 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 
 		if !result.Passed && opts.Deps.Collector != nil && result.Failure != nil {
 			failure := *result.Failure
+			failure.SandboxNamespace = opts.SandboxNamespace
 			failure.ArtifactsDir = opts.ArtifactsDir
 			artifacts, collectErr := opts.Deps.Collector.Collect(ctx, failure)
 			if collectErr != nil {

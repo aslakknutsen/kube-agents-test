@@ -20,9 +20,7 @@ func (c *sandboxCollector) Collect(ctx context.Context, fc engine.FailureContext
 	return diagnostics.Artifacts{ScenarioName: fc.Scenario.Name}, nil
 }
 
-// Documents current gap: runner forwards SandboxNamespace to Engine.RunInput but not
-// to FailureContext before Collector.Collect (ArtifactsDir is forwarded).
-func TestRunnerFailureContextSandboxNamespaceNotForwardedToCollector(t *testing.T) {
+func TestRunnerFailureContextSandboxNamespaceForwardedToCollector(t *testing.T) {
 	collector := &sandboxCollector{}
 	dir := t.TempDir()
 	yaml := strings.Replace(minimalScenarioYAML("fail-scenario", "a"), "namespace: sandbox", "namespace: tenant-a", 1)
@@ -46,7 +44,7 @@ func TestRunnerFailureContextSandboxNamespaceNotForwardedToCollector(t *testing.
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if collector.lastSandbox != "" {
-		t.Errorf("FailureContext.SandboxNamespace = %q, runner does not populate it today", collector.lastSandbox)
+	if collector.lastSandbox != "tenant-a" {
+		t.Errorf("FailureContext.SandboxNamespace = %q, want tenant-a", collector.lastSandbox)
 	}
 }
