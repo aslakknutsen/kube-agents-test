@@ -1,0 +1,21 @@
+name: reconcile-from-setup
+description: Agents reconcile cluster state from setup manifests without an explicit trigger.
+
+agents:
+  - scaling-agent
+
+setup:
+  manifests:
+    - fixtures/namespace.yaml
+    - fixtures/configmap.yaml
+
+expect:
+  - resource:
+      apiVersion: v1
+      kind: ConfigMap
+      name: desired-state
+      namespace: test-agents
+    conditions:
+      - path: .data.replicas
+        value: "3"
+  timeout: 60s

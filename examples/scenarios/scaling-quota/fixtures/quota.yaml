@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: replica-quota
+  namespace: test-agents
+spec:
+  hard:
+    pods: "5"

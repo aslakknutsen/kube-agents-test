@@ -1,0 +1,28 @@
+name: kill-agent-leader-recovery
+description: Kill the leader agent pod and verify failover restores expected state.
+
+agents:
+  - scaling-agent
+
+setup:
+  manifests:
+    - fixtures/namespace.yaml
+    - fixtures/deployment.yaml
+
+trigger:
+  fault:
+    type: kill-agent
+    params:
+      agent: scaling-agent
+      target: leader
+
+expect:
+  - resource:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: controller
+      namespace: test-agents
+    conditions:
+      - path: .status.readyReplicas
+        value: 2
+  timeout: 120s
