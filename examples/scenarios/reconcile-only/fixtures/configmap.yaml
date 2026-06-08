@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: desired-state
+  namespace: test-agents
+data:
+  replicas: "3"

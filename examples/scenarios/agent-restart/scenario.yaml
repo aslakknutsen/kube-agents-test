@@ -1,0 +1,27 @@
+name: agent-restart-recovery
+description: Restart an agent mid-scenario and verify the cluster still converges.
+
+agents:
+  - scaling-agent
+  - quota-agent
+
+setup:
+  manifests:
+    - fixtures/namespace.yaml
+    - fixtures/deployment.yaml
+
+trigger:
+  agentRestart:
+    agent: scaling-agent
+    delay: 5s
+
+expect:
+  - resource:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: workload
+      namespace: test-agents
+    conditions:
+      - path: .status.readyReplicas
+        value: 1
+  timeout: 90s
