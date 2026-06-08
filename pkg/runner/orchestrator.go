@@ -57,6 +57,10 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 	if opts.ClusterConfig.Mode == cluster.ModeAttached && opts.ClusterConfig.Attached != nil {
 		leaveCluster = leaveCluster || opts.ClusterConfig.Attached.LeaveRunning
 	}
+	// Ephemeral clusters are always torn down; LeaveCluster applies to attached mode only.
+	if opts.ClusterConfig.Mode == cluster.ModeEphemeral {
+		leaveCluster = false
+	}
 	if !leaveCluster {
 		defer func() {
 			_ = opts.Deps.Provider.Teardown(ctx, cl)
@@ -102,15 +106,22 @@ func (r *defaultRunner) Run(ctx context.Context, opts RunOptions) (Report, error
 			return report, err
 		}
 
-		if !result.Passed && opts.Deps.Collector != nil && result.Failure != nil {
-			failure := *result.Failure
-			failure.SandboxNamespace = opts.SandboxNamespace
-			failure.ArtifactsDir = opts.ArtifactsDir
-			artifacts, collectErr := opts.Deps.Collector.Collect(ctx, failure)
-			if collectErr != nil {
-				report.DiagnosticsErrors[item.Scenario.Name] = collectErr
+		if !result.Passed && opts.Deps.Collector != nil {
+			if result.Failure == nil {
+				report.DiagnosticsErrors[item.Scenario.Name] = fmt.Errorf(
+					"engine returned failure without FailureContext for scenario %q",
+					item.Scenario.Name,
+				)
 			} else {
-				report.Diagnostics[item.Scenario.Name] = artifacts
+				failure := *result.Failure
+				failure.SandboxNamespace = opts.SandboxNamespace
+				failure.ArtifactsDir = opts.ArtifactsDir
+				artifacts, collectErr := opts.Deps.Collector.Collect(ctx, failure)
+				if collectErr != nil {
+					report.DiagnosticsErrors[item.Scenario.Name] = collectErr
+				} else {
+					report.Diagnostics[item.Scenario.Name] = artifacts
+				}
 			}
 		}
 

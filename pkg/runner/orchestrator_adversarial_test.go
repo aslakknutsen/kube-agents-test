@@ -521,3 +521,69 @@ func TestRunnerEngineInfraErrorReturnsPartialReport(t *testing.T) {
 		t.Errorf("Manager Teardown calls = %d, want 1 on infra error exit", manager.teardownCalls)
 	}
 }
+
+func TestRunnerEphemeralLeaveClusterStillTearsDown(t *testing.T) {
+	provider := &recordingProvider{}
+	manager := &recordingManager{}
+	eng := &recordingEngine{}
+
+	dir := t.TempDir()
+	writeScenario(t, dir, "one.yaml", minimalScenarioYAML("one", "a"))
+
+	r := runner.NewDefault(runner.Dependencies{
+		Provider: provider,
+		Manager:  manager,
+		Engine:   eng,
+	})
+
+	_, err := r.Run(context.Background(), runner.RunOptions{
+		Paths:        []string{dir},
+		LeaveCluster: true,
+		ClusterConfig: cluster.Config{
+			Mode:      cluster.ModeEphemeral,
+			Ephemeral: &cluster.EphemeralConfig{Backend: "kind"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if provider.teardownCalls != 1 {
+		t.Errorf("Teardown calls = %d, want 1 for ephemeral even when LeaveCluster=true", provider.teardownCalls)
+	}
+}
+
+type engineMissingFailureContext struct{}
+
+func (e *engineMissingFailureContext) Run(ctx context.Context, in engine.RunInput) (engine.Result, error) {
+	return engine.Result{ScenarioName: in.Scenario.Name, Passed: false}, nil
+}
+
+func TestRunnerMissingFailureContextRecordsDiagnosticsError(t *testing.T) {
+	collector := &sandboxCollector{}
+	dir := t.TempDir()
+	writeScenario(t, dir, "one.yaml", minimalScenarioYAML("one", "a"))
+
+	r := runner.NewDefault(runner.Dependencies{
+		Provider:  &recordingProvider{},
+		Manager:   &recordingManager{},
+		Engine:    &engineMissingFailureContext{},
+		Collector: collector,
+	})
+
+	report, err := r.Run(context.Background(), runner.RunOptions{
+		Paths: []string{dir},
+		ClusterConfig: cluster.Config{
+			Mode:      cluster.ModeEphemeral,
+			Ephemeral: &cluster.EphemeralConfig{Backend: "kind"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if _, ok := report.DiagnosticsErrors["one"]; !ok {
+		t.Fatal("expected DiagnosticsErrors entry when engine omits FailureContext")
+	}
+	if _, ok := report.Diagnostics["one"]; ok {
+		t.Error("Diagnostics should not be populated without FailureContext")
+	}
+}
